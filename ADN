@@ -1,0 +1,302 @@
+;                                      PROYECTO DE ARQUITECTURA DE COMPUTADORES -- ADN --
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;Objetivo:  Generar una secuencia de caracteres de ADN que sera definida por el usuario, para asi almacenarlo en un archivo
+;           con extencion .adn
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Etiquetas
+	sys_exit equ 1
+	sys_read equ 3
+	sys_write equ 4
+	sys_open equ 5	
+	sys_close equ 6
+	sys_create equ 8
+	stdin equ	0
+	stdout equ 1
+	
+;Permisos de escritura y lectura de archivos
+	%assign S_IRUSR 00400q
+	%assign S_IWUSR 00200q
+	
+; Datos no inicializados
+section .bss
+
+	buffer resb 100	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	TamanoEntrada equ 100	;Alamacena en el buffer el string original
+	entrada resb TamanoEntrada ;Tamano del buffer
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+	tamanoArchivo equ 1000000	;Alamacena en el buffer el string original
+	archivo resb tamanoArchivo ;Tamano del buffer
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+	tamanoSecuencia equ 1000001	;Alamacena en el buffer el string original
+	secuencia resb tamanoSecuencia ;Tamano del buffer
+	
+	
+; Datos inicializados
+section .data
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	tamano: db "Favor digitar el tamano de la secuencia de caracteres para la secuencia de adn: ",10	
+	LenTamano: equ $-tamano
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	nombreArchivo: db "Favor digitar el nombre que desea para el archivo: ",10	
+	SizeArchivo: equ $-nombreArchivo
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	espacio: db 10,10
+	espacioLen: equ $-espacio
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	MsjError: db "¡Error! La creacion del archivo no se ha finalizado",10	
+	tamanoMsjError: equ $-MsjError
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	MsjExito: db "El archivo se creo de manera exitosa",10,10
+	tamanoMsjExito: equ $-MsjExito
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Instrucciones
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	section .text
+	
+; Inicio programa
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	global _start
+	_start:
+	nop	
+	
+;Impresion de espacios para la legibilidad del programa
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	mov ecx, espacio
+	mov edx, espacioLen
+	call DisplayText
+	
+;Solicitud al usuario del nombre del archivo
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	mov ecx, nombreArchivo
+	mov edx, SizeArchivo
+	call DisplayText 
+	mov edx, SizeArchivo
+	mov ecx, archivo
+	call ReadText 
+	mov ecx, eax	
+	dec ecx	
+	mov bl, "."	;mover al bl el caracter correspondiente
+	mov byte[archivo+ecx],bl	
+	mov bl, "a"	;mover al bl el caracter correspondiente
+	mov byte[archivo+eax], bl	
+	inc eax	
+	mov bl, "d"	;mover al bl el caracter correspondiente
+	mov byte[archivo+eax], bl	
+	inc eax	;incremento del puntero
+	mov bl, "n"	;mover al bl el caracter correspondiente
+	mov byte[archivo+eax], bl
+	inc eax	;incremento del puntero
+	mov bl, 0h	;mover al bl el caracter correspondiente(null)
+	mov byte[archivo+eax], bl	
+	
+	
+;Impresion de espacios para mejorar la legibilidad visual en el programa
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	mov ecx, espacio
+	mov edx, espacioLen
+	call DisplayText
+	
+;Solicita el largo de la secuencia de la cadena de ADN
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	mov ecx, tamano
+	mov edx, LenTamano
+	call DisplayText ;impresion al usuario
+	mov edx, TamanoEntrada ;se mueve al edx el tamano del mensaje
+	mov ecx, entrada ;mover al ecx el puntero 
+	call ReadText ;Rutina que genera un CIN
+	push eax	;se guarda en la pila el tamano del mensaje
+	lea esi, [entrada] ;Inicializa para utilizar STR TO INT
+	pop ecx	;mover al ecx el tamno del mensaje
+	dec ecx	;se le resta 1
+	call string_to_int ;llamado de la subrutina STR TO INT
+	push eax	;se guarda en la pila el tamano del mensaje
+	mov ebx, eax	;mover la cantidad de digitos al eax
+	push ebx	;Guardar en la pila
+	xor eax, eax	;retear el eax
+	push eax	;guardar 0 en la pila
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Metodo para generar random
+; eax = {0:"A" , 1:"C", 2:"T", 3:"G"}
+
+GRandom:
+	xor eax, eax	
+	RDTSC ; \ estas 2 lineas me dejan el el eax un numero random entre 0 y 255 - Tomado de :
+	and eax, 0FFH ; / http://stackoverflow.com/questions/17182182/how-to-create-random-number-in-nasm-getting-system-time
+	mov ebx, 4	; muevo al ebx un 4
+	xor edx, edx	; limpio el edx para aplicar modulo
+	div ebx	; divido (modulo) entre 4
+	mov eax, edx	; paso el resultado random(0, 1, 2, 3) al eax
+	cmp eax, 0	;aca en caso de que el random sea 0 es adenina, 1 es citocina,
+	je Adenina ;2 es timina y 3 es guanina
+	cmp eax, 1
+	je Citocina
+	cmp eax, 2
+	je Timina
+	jmp Guanina
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+Adenina:
+	pop edx	;saco el puntero del buffer
+	pop ecx	;saco el largo de la secuencia de adn
+	mov bl, "A"	;en el bl queda el caracter
+	mov byte[secuencia+edx], bl	;muevo al buffer el caracter dedicado a esta funcion
+	inc edx	;incremento el puntero de buffer
+	dec ecx	;decremento el largo de la secuencia de adn
+	push ecx	;guardo el largo de la tamanoSecuencia
+	push edx	;guerdo el puntero del buffer
+	cmp ecx, 0	;me fijo si no tengo mas elementos que insertar
+	jne GRandom ;si aun tengo elementos, vuelvo a generar random
+	jmp insertar ;si ya los tengo todos, los paso a insertar
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+Citocina:
+	pop edx	;saco el puntero del buffer
+	pop ecx	;saco el largo de la secuencia de adn
+	mov bl, "C"	;en el bl queda el caracter
+	mov byte[secuencia+edx], bl	;muevo al buffer el caracter dedicado a esta funcion
+	inc edx	;incremento el puntero de buffer
+	dec ecx	;decremento el largo de la secuencia de adn
+	push ecx	;guardo el largo de la tamanoSecuencia
+	push edx	;guerdo el puntero del buffer
+	cmp ecx, 0	;me fijo si no tengo mas elementos que insertar
+	jne GRandom ;si aun tengo elementos, vuelvo a generar random
+	jmp insertar ;si ya los tengo todos, los paso a insertar
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+
+Timina:
+	pop edx	;saco el puntero del buffer
+	pop ecx	;saco el largo de la secuencia de adn
+	mov bl, "T"	;en el bl queda el caracter
+	mov byte[secuencia+edx], bl	;muevo al buffer el caracter dedicado a esta funcion
+	inc edx	;incremento el puntero de buffer
+	dec ecx	;decremento el largo de la secuencia de adn
+	push ecx	;guardo el largo de la tamanoSecuencia
+	push edx	;guerdo el puntero del buffer
+	cmp ecx, 0	;me fijo si no tengo mas elementos que insertar
+	jne GRandom ;si aun tengo elementos, vuelvo a generar random
+	jmp insertar ;si ya los tengo todos, los paso a insertar
+	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+
+Guanina:
+	pop edx	;saco el puntero del buffer
+	pop ecx	;saco el largo de la secuencia de adn
+	mov bl, "G"	;en el bl queda el caracter
+	mov byte[secuencia+edx], bl	;muevo al buffer el caracter dedicado a esta funcion
+	inc edx	;incremento el puntero de buffer
+	dec ecx	;decremento el largo de la secuencia de adn
+	push ecx	;guardo el largo de la tamanoSecuencia
+	push edx	;guerdo el puntero del buffer
+	cmp ecx, 0	;me fijo si no tengo mas elementos que insertar
+	jne GRandom ;si aun tengo elementos, vuelvo a generar random
+	jmp insertar ;si ya los tengo todos, los paso a insertar
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+
+insertar:
+	pop edx	;\ limpio la pila
+	pop eax	;/
+	mov	eax, sys_create ;llamada al sistema
+	mov ebx, archivo ;puntero del nombre del programa
+	mov ecx, S_IRUSR|S_IWUSR ;otorgo permisos de escritura y lectura
+	xor edx, edx	;limpio el edx
+	int	80h	;llamada al sistema
+	test eax,eax	;pregunto si cree bien el archivo
+	js error ;si lo creo mal, paso a notificarlo
+	pop edx	;retorno el INT del largo de la secuencia de archivo (*)
+	push eax	;salvo el file descriptor
+	mov ebx, eax	;muevo al bx, el file descriptor
+	mov eax, sys_write ;muevo al eax la funcion de escribir del sys
+	mov ecx, secuencia ;muevo al ecx el puntero a la secuencia de adn generada anteriormente
+	int 80h	;llamada del sistema
+	mov eax, sys_close ;solamente se llama a la llamada del sistema sys_close
+	pop ebx	;retirno el file descriptor
+	int 80h	;llada al sistema
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+;Impresion de espacios para mejorar la legibilidad visual en el programa
+	mov ecx, espacio
+	mov edx, espacioLen
+	call DisplayText
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+;Impresion mensaje exitoso
+	mov ecx, MsjExito
+	mov edx, tamanoMsjExito
+	call DisplayText
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+;Impresion de espacios para mejorar la legibilidad visual en el programa
+	mov ecx, espacio
+	mov edx, espacioLen
+	call DisplayText
+	jmp Cerrar 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+;Impresion mensaje error
+	error:
+	mov ecx, MsjError
+	mov edx, tamanoMsjError
+	call DisplayText
+	jmp Cerrar
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+;Setear lo siguiente:
+; ecx: el puntero al mensaje a desplegar
+; edx: el largo del mensaje a desplegar
+; modifica los registros eax y ebx.
+	DisplayText:
+	mov eax, sys_write
+	mov ebx, stdout
+	int 80h
+	ret
+; lee algo de la entrada estándar.debe "setearse" lo siguiente:
+; ecx: el puntero al buffer donde se almacenará
+; edx: el largo del mensaje a leer
+	ReadText:
+	mov ebx, stdin
+	mov eax, sys_read
+	int 80H
+	ret
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;http://stackoverflow.com/questions/19309749/nasm-assembly-convert-input-to-integer
+;Input:
+; EAX = integer value to convert
+; ESI = pointer to buffer to store the string in (must have room for at least 10 bytes)
+; Output:
+; EAX = pointer to the first character of the generated string
+	int_to_string:
+	push esi
+	add esi,9
+	mov byte [esi],0
+	mov ebx,10
+	.next_digit:
+	xor edx,edx ; Clear edx prior to dividing edx:eax by ebx
+	div ebx ; eax /= 10
+	add dl,'0' ; Convert the remainder to ASCII
+	dec esi ; store characters in reverse order
+	mov [esi],dl
+	test eax,eax
+	jnz .next_digit ; Repeat until eax==0
+	mov eax,esi
+	pop esi
+	ret
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Entrada:
+; ESI = pointer to the string to convert
+; ECX = number of digits in the string (must be > 0)
+; Output:
+; EAX = integer value
+	string_to_int:
+	xor ebx,ebx ; clear ebx
+	.next_digit:
+	movzx eax,byte[esi]
+	inc esi
+	sub al,'0' ; convert from ASCII to number
+	imul ebx,10
+	add ebx,eax ; ebx = ebx*10 + eax
+	loop .next_digit ; while (--ecx)
+	mov eax,ebx
+	ret
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+Cerrar:
+	mov eax, sys_exit ;muevo la variabla sys_close al eax
+	int 80h	;llamo a la interrupcion de kernel
